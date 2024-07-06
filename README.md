@@ -1,2 +1,1 @@
-# DLS
-decentralized learning scheduler
+# decentralized
