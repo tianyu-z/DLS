@@ -137,7 +137,7 @@ def main(
             1.0 / args.size for _ in range(args.size)
         ]  # split 是一个列表 代表每个model分的dataset
     worker_list = []
-    # model_list = []
+    trainloader_length_list = []
     for rank in range(args.size):
 
         train_loader, _, _, classes = load_dataset(
@@ -150,6 +150,7 @@ def main(
             split=split,
             seed=args.seed,
         )
+        trainloader_length_list.append(len(train_loader))
         model = load_model(args.model, classes, pretrained=args.pretrained).to(
             args.device
         )
@@ -195,11 +196,19 @@ def main(
     P = generate_P(args.mode, args.size)
 
     for iteration in range(args.early_stop):
-        epoch = iteration // len(train_loader)
+        # 这里的epoch是平均epoch
+        epoch = iteration // (
+            sum(trainloader_length_list) / len(trainloader_length_list)
+        )
 
-        if iteration % len(train_loader) == 0:
-            for worker in worker_list:
-                worker.update_iter()
+        # if iteration % len(train_loader) == 0:
+        # for worker in worker_list:
+        # worker.update_iter()
+
+        # 对每个trainloader检测是否遍历完，如果遍历完 则对应的worker 更新trainloader
+        for i in range(0, args.size):
+            if iteration % trainloader_length_list[i] == 0:
+                worker_list[i].update_iter()
 
         if args.mode == "csgd":
             update_csgd(worker_list, center_model)
@@ -232,44 +241,6 @@ def main(
 
 if __name__ == "__main__":
 
-    # parser = argparse.ArgumentParser()
-    # ## dataset
-    # parser.add_argument("--dataset_path", type=str, default='datasets')
-    # parser.add_argument("--dataset_name", type=str, default='CIFAR10',
-    #                                         choices=['CIFAR10','CIFAR100','TinyImageNet'])
-    # parser.add_argument("--image_size", type=int, default=56, help='input image size')
-    # parser.add_argument("--batch_size", type=int, default=512)
-    # parser.add_argument('--n_swap', type=int, default=None)
-
-    # # mode parameter
-    # parser.add_argument('--mode', type=str, default='csgd', choices=['csgd', 'ring', 'meshgrid', 'exponential', 'dqn_chooseone'])
-    # parser.add_argument('--shuffle', type=str, default="fixed", choices=['fixed', 'random'])
-    # parser.add_argument('--size', type=int, default=16)
-    # parser.add_argument('--port', type=int, default=29500)
-    # parser.add_argument('--backend', type=str, default="gloo")
-    # # deep model parameter
-    # parser.add_argument('--model', type=str, default='ResNet18_M',
-    #                     choices=['ResNet18', 'AlexNet', 'DenseNet121', 'AlexNet_M','ResNet18_M', 'ResNet34_M', 'DenseNet121_M'])
-    # parser.add_argument("--pretrained", type=int, default=1)
-
-    # # optimization parameter
-    # parser.add_argument('--lr', type=float, default=0.1, help='learning rate')
-    # parser.add_argument('--wd', type=float, default=0.0,  help='weight decay')
-    # parser.add_argument('--gamma', type=float, default=0.1)
-    # parser.add_argument('--momentum', type=float, default=0.0)
-    # parser.add_argument('--warmup_step', type=int, default=0)
-    # parser.add_argument('--epoch', type=int, default=6000)
-    # parser.add_argument('--early_stop', type=int, default=6000, help='w.r.t., iterations')
-    # parser.add_argument('--milestones', type=int, nargs='+', default=[2400, 4800])
-    # parser.add_argument('--seed', type=int, default=666)
-    # parser.add_argument("--device", type=int, default=0)
-    # parser.add_argument("--amp", action='store_true', help='automatic mixed precision')
-
-    # args = parser.parse_args()
-
-    # args = add_identity(args, dir_path)
-    # # print(args)
-    # main(args)
     if os.path.exists(nfs_dataset_path1):
         dataset_path = nfs_dataset_path1
     elif os.path.exists(nfs_dataset_path2):

@@ -21,3 +21,7 @@ done 的具体含义为一轮epoch的技术，是否合适？因为在一轮epoc
 修改了pca的方法后有很多要一起修改的点
 pca之后的state维度是【144】 所以创建value model时的input维度也是144 replay buffer的obs dim也是144
 将state维度放入args state size中
+
+当数据为noniid时 不同的train loader 的length 不一样了 
+
+规定不同worker的iteration次数相同 即epoch次数不同
