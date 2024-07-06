@@ -20,5 +20,3 @@ logs*
 # *.pdf
 *.pt
 dev.py
-wandb/*
-*.out

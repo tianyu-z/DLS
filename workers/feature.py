@@ -38,7 +38,7 @@ def pca_weights(n_components, weights):
       time1 = time.time()
       # weights = np.array(result)
       # print(pca.fit_transform(result))
-      print(time.time()-time1)
+      # print(f"pca_time:{time.time()-time1}")
       pca_weights = pca.fit_transform(result)
       pca_weights = torch.from_numpy(pca_weights)
       pca_weights = pca_weights.mean(dim=-1)
