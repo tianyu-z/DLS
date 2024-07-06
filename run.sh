@@ -11,4 +11,5 @@
 source ~/.bashrc
 conda activate py311
 cd /home/mila/t/tianyu.zhang/scratch/decentralized
-python /home/mila/t/tianyu.zhang/scratch/decentralized/main.py
+python /home/mila/t/tianyu.zhang/scratch/decentralized/main.py --nonIID 1
+python /home/mila/t/tianyu.zhang/scratch/decentralized/main.py --nonIID 0

@@ -7,7 +7,7 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
-from datasets import load_dataset
+from our_datasets import load_dataset
 from networks import load_model, load_valuemodel
 from workers.worker_vision import Worker_Vision, Worker_Vision_AMP, DQNAgent
 from utils.scheduler import Warmup_MultiStepLR
@@ -24,10 +24,15 @@ from utils.utils import (
 )
 from easydict import EasyDict
 import wandb
-from utils.dirichlet import dirichlet_split_noniid
+from utils.dirichlet import (
+    dirichlet_split_noniid,
+    create_dataloaders,
+    create_simple_preference,
+    create_IID_preference,
+)
 from torchvision.datasets import CIFAR10
 import numpy as np
-
+from our_datasets.get_dataset import get_dataset
 from fire import Fire
 
 # torch.set_num_threads(4)
@@ -123,35 +128,46 @@ def main(
         valid_batch_size=args.batch_size,
     )
 
+    # if nonIID:
+    #     train_set = CIFAR10(
+    #         root=args.dataset_path, train=True, transform=None, download=True
+    #     )
+    #     label = np.array(train_set.targets)
+    #     split = dirichlet_split_noniid(
+    #         train_labels=label, alpha=args.alpha, n_clients=args.size
+    #     )
+    # # 这里split包含每个clients的所有索引
+    # else:
+    #     split = [
+    #         1.0 / args.size for _ in range(args.size)
+    #     ]  # split 是一个列表 代表每个model分的dataset
+    train_set, valid_set, nb_class = get_dataset(dataset_name, dataset_path, image_size)
     if nonIID:
-        train_set = CIFAR10(
-            root=args.dataset_path, train=True, transform=None, download=True
+        all_class_weights = create_simple_preference(
+            args.size, nb_class, important_prob=0.8
         )
-        label = np.array(train_set.targets)
-        split = dirichlet_split_noniid(
-            train_labels=label, alpha=args.alpha, n_clients=args.size
-        )
-    # 这里split包含每个clients的所有索引
     else:
-        split = [
-            1.0 / args.size for _ in range(args.size)
-        ]  # split 是一个列表 代表每个model分的dataset
+        all_class_weights = create_IID_preference(args.size, nb_class)
+    train_dataloaders = create_dataloaders(
+        train_set, args.size, len(train_set) // args.size, all_class_weights
+    )
     worker_list = []
     trainloader_length_list = []
     for rank in range(args.size):
 
-        train_loader, _, _, classes = load_dataset(
-            root=args.dataset_path,
-            name=args.dataset_name,
-            image_size=args.image_size,
-            train_batch_size=args.batch_size,
-            distribute=True,
-            rank=rank,
-            split=split,
-            seed=args.seed,
-        )
+        # train_loader, _, _, classes = load_dataset(
+        #     root=args.dataset_path,
+        #     name=args.dataset_name,
+        #     image_size=args.image_size,
+        #     train_batch_size=args.batch_size,
+        #     distribute=True,
+        #     rank=rank,
+        #     split=split,
+        #     seed=args.seed,
+        # )
+        train_loader = train_dataloaders[rank]
         trainloader_length_list.append(len(train_loader))
-        model = load_model(args.model, classes, pretrained=args.pretrained).to(
+        model = load_model(args.model, nb_class, pretrained=args.pretrained).to(
             args.device
         )
         if args.mode == "dqn_chooseone":
