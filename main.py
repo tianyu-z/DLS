@@ -32,7 +32,7 @@ from utils.dirichlet import (
 )
 from torchvision.datasets import CIFAR10
 import numpy as np
-from our_datasets.get_dataset import get_dataset
+from our_datasets.dataset import get_dataset
 from fire import Fire
 
 # torch.set_num_threads(4)
@@ -141,7 +141,9 @@ def main(
     #     split = [
     #         1.0 / args.size for _ in range(args.size)
     #     ]  # split 是一个列表 代表每个model分的dataset
-    train_set, valid_set, nb_class = get_dataset(dataset_name, dataset_path, image_size)
+    train_set, valid_set, _, nb_class = load_dataset(
+        dataset_name, dataset_path, image_size
+    )
     if nonIID:
         all_class_weights = create_simple_preference(
             args.size, nb_class, important_prob=0.8
