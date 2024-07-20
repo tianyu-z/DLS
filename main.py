@@ -33,6 +33,7 @@ from utils.dirichlet import (
 from torchvision.datasets import CIFAR10
 import numpy as np
 from fire import Fire
+from tqdm import trange
 
 # torch.set_num_threads(4)
 
@@ -42,7 +43,7 @@ nfs_dataset_path2 = "/nfs4-p1/ckx/datasets/"
 
 def main(
     dataset_path="datasets",
-    dataset_name="cifar10_test",
+    dataset_name="cifar10",
     image_size=56,
     batch_size=512,
     n_swap=None,
@@ -58,7 +59,6 @@ def main(
     gamma=0.1,
     momentum=0.0,
     warmup_step=0,
-    epoch=6000,
     early_stop=6000,
     milestones=[2400, 4800],
     seed=666,
@@ -79,7 +79,7 @@ def main(
         "model",
         "pretrained",
         "alpha",
-        "epoch",
+        "early_stop",
         "nonIID",
     ]
     args = EasyDict(locals().copy())
@@ -200,7 +200,7 @@ def main(
 
     P = generate_P(args.mode, args.size)
 
-    for iteration in range(args.early_stop):
+    for iteration in trange(args.early_stop):
         # 这里的epoch是平均epoch
         epoch = iteration // (
             sum(trainloader_length_list) / len(trainloader_length_list)
@@ -224,7 +224,8 @@ def main(
 
         center_model = update_center_model(worker_list)
 
-        if iteration % 50 == 0 and iteration != 0:
+        if iteration % 50 == 0:
+
             train_acc, train_loss, valid_acc, valid_loss = evaluate_and_log(
                 center_model,
                 probe_train_loader,
@@ -236,7 +237,7 @@ def main(
                 wandb,
             )
 
-        if iteration == args.early_stop - 1:
+        if iteration == args.early_stop:
             save_model(center_model, train_acc, epoch, args, log_id)
             break
 

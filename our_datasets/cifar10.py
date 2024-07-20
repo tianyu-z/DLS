@@ -63,8 +63,8 @@ def load_cifar10(
 
     if debug:
         # only take the first 50 samples
-        train_set = SubsetDataset(train_set, 50)
-        valid_set = SubsetDataset(valid_set, 50)
+        train_set = SubsetDataset(train_set, 128)
+        valid_set = SubsetDataset(valid_set, 128)
 
     if return_dataloader:
         train_loader = DataLoader(
