@@ -132,6 +132,8 @@ def eval_vision(model, train_loader, valid_loader, epoch, iteration, tb, device)
     start = datetime.datetime.now()
     for batch in train_loader:
         step += 1
+        if isinstance(batch[1], (int)):
+            batch[1] = torch.tensor([batch[1]], dtype=torch.long)
         data, target = batch[0].to(device), batch[1].to(device)
         output = model(data)
         p = torch.softmax(output, dim=1).argmax(1)

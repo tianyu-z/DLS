@@ -32,7 +32,6 @@ from utils.dirichlet import (
 )
 from torchvision.datasets import CIFAR10
 import numpy as np
-from our_datasets.dataset import get_dataset
 from fire import Fire
 
 # torch.set_num_threads(4)
@@ -43,11 +42,11 @@ nfs_dataset_path2 = "/nfs4-p1/ckx/datasets/"
 
 def main(
     dataset_path="datasets",
-    dataset_name="CIFAR10",
+    dataset_name="cifar10_test",
     image_size=56,
     batch_size=512,
     n_swap=None,
-    mode="csgd",
+    mode="dqn_chooseone",
     shuffle="fixed",
     size=16,
     port=29500,
@@ -70,7 +69,7 @@ def main(
     nonIID=True,
     project_name="decentralized",
     alpha=0.3,
-    state_size=1,
+    state_size=144,
 ):
     sub_dict_keys = [
         "dataset_name",
@@ -126,23 +125,11 @@ def main(
         image_size=args.image_size,
         train_batch_size=args.batch_size,
         valid_batch_size=args.batch_size,
+        return_dataloader=True,
     )
 
-    # if nonIID:
-    #     train_set = CIFAR10(
-    #         root=args.dataset_path, train=True, transform=None, download=True
-    #     )
-    #     label = np.array(train_set.targets)
-    #     split = dirichlet_split_noniid(
-    #         train_labels=label, alpha=args.alpha, n_clients=args.size
-    #     )
-    # # 这里split包含每个clients的所有索引
-    # else:
-    #     split = [
-    #         1.0 / args.size for _ in range(args.size)
-    #     ]  # split 是一个列表 代表每个model分的dataset
     train_set, valid_set, _, nb_class = load_dataset(
-        dataset_name, dataset_path, image_size
+        dataset_path, dataset_name, image_size, return_dataloader=False
     )
     if nonIID:
         all_class_weights = create_simple_preference(
@@ -237,7 +224,7 @@ def main(
 
         center_model = update_center_model(worker_list)
 
-        if iteration % 50 == 0:
+        if iteration % 50 == 0 and iteration != 0:
             train_acc, train_loss, valid_acc, valid_loss = evaluate_and_log(
                 center_model,
                 probe_train_loader,

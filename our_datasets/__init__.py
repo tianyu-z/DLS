@@ -7,6 +7,7 @@ def load_dataset(
     root,
     name,
     image_size,
+    return_dataloader,
     train_batch_size=64,
     valid_batch_size=64,
     distribute=False,
@@ -14,6 +15,19 @@ def load_dataset(
     rank=0,
     seed=666,
 ):
+    if name.lower() == "cifar10_test":
+        return load_cifar10(
+            root=root,
+            image_size=image_size,
+            train_batch_size=train_batch_size,
+            valid_batch_size=valid_batch_size,
+            distribute=distribute,
+            split=split,
+            rank=rank,
+            seed=seed,
+            debug=True,
+            return_dataloader=return_dataloader,
+        )
     if name.lower() == "cifar10":
         return load_cifar10(
             root=root,
@@ -24,6 +38,8 @@ def load_dataset(
             split=split,
             rank=rank,
             seed=seed,
+            debug=False,
+            return_dataloader=return_dataloader,
         )
     if name.lower() == "tinyimagenet":
         return load_tinyimagenet(
