@@ -43,13 +43,13 @@ nfs_dataset_path2 = "/nfs4-p1/ckx/datasets/"
 
 def main(
     dataset_path="datasets",
-    dataset_name="cifar10",
+    dataset_name="cifar10",  # cifar10_test
     image_size=56,
     batch_size=512,
     n_swap=None,
     mode="dqn_chooseone",
     shuffle="fixed",
-    size=16,
+    size=4,
     port=29500,
     backend="gloo",
     model="ResNet18_M",
