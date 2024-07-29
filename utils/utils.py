@@ -97,7 +97,6 @@ def add_identity(args, dir_path):
         + f"{args.gamma}-"
         + f"{args.momentum}-"
         + f"{args.warmup_step}-"
-        + f"{args.epoch}-"
         + f"{args.early_stop}-"
         + f"{args.seed}-"
         + f"{args.amp}"
@@ -132,6 +131,8 @@ def eval_vision(model, train_loader, valid_loader, epoch, iteration, tb, device)
     start = datetime.datetime.now()
     for batch in train_loader:
         step += 1
+        if isinstance(batch[1], (int)):
+            batch[1] = torch.tensor([batch[1]], dtype=torch.long)
         data, target = batch[0].to(device), batch[1].to(device)
         output = model(data)
         p = torch.softmax(output, dim=1).argmax(1)
@@ -283,7 +284,7 @@ def generate_P(mode, size):
             i -= 1
         shape = (i, size // i)
         nrow, ncol = shape
-        print(shape, flush=True)
+        # print(shape, flush=True)
         topo = np.zeros((size, size))
         for i in range(size):
             topo[i][i] = 1.0
@@ -309,7 +310,7 @@ def generate_P(mode, size):
         for i in range(size):
             topo[i] = np.roll(x, i)
         result = torch.tensor(topo, dtype=torch.float)
-    print(result, flush=True)
+    # print(result, flush=True)
     return result
 
 
@@ -381,6 +382,8 @@ def evaluate_and_log(
     wandb,
 ):
     start_time = datetime.datetime.now()
+    if iteration == 0:
+        iteration = 1
     if args.amp:
         train_acc, train_loss, valid_acc, valid_loss = eval_vision_amp(
             center_model,
@@ -403,7 +406,7 @@ def evaluate_and_log(
         )
 
     print(
-        f"\n|\033[0;31m Iteration:{iteration}|{args.early_stop}, epoch: {epoch}|{args.epoch},\033[0m",
+        f"\n|\033[0;31m Iteration:{iteration}|{args.early_stop}, epoch: {epoch}|{args.early_stop},\033[0m",
         f"train loss:{train_loss:.4f}, acc:{train_acc:.4%}, "
         f"valid loss:{valid_loss:.4f}, acc:{valid_acc:.4%}.",
     )

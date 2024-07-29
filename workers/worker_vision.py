@@ -5,6 +5,7 @@ from replay_buffer import ReplayBuffer
 import torch.nn.functional as F
 from .feature import pca_weights
 import torch.optim as optim
+import numpy as np
 
 criterion = nn.CrossEntropyLoss()
 
@@ -107,8 +108,8 @@ class DQNAgent(Worker_Vision):
         scheduler,
         train_loader,
         args,
-        max_epsilon: float = 1.0,
-        min_epsilon: float = 0.1,
+        max_epsilon: float = 0.2,
+        min_epsilon: float = 0.05,
         gamma: float = 0.99,
         memory_size: int = 10000,
         batch_size: int = 10,
@@ -219,7 +220,12 @@ class DQNAgent(Worker_Vision):
             selected_action = action_space[
                 torch.randint(low=0, high=len(action_space), size=(1,))
             ].item()
+            entropy = torch.log(self.clients_number)
         else:
+            logits = self.dqn(self.state.to(self.device))
+            # softmax logits
+            normalized_logits = F.softmax(logits, dim=-1)
+            entropy = -torch.sum(normalized_logits * torch.log(normalized_logits))
             selected_action = self.dqn(self.state.to(self.device)).argmax().item()
             # selected_action = selected_action.detach().cpu().numpy()
 
@@ -227,19 +233,26 @@ class DQNAgent(Worker_Vision):
         if not self.is_test:
             self.transition = [self.state, selected_action]
 
-        return selected_action
+        return selected_action, entropy
 
-    def store_buffer(self, old_acc, new_acc):
+    def store_buffer(
+        self,
+        old_acc,
+        new_acc,
+        amplify="exp",
+    ):
         """Take an action and return the response of the env."""
         # next_state, reward, terminated, truncated, _ = self.env.step(action)
         # 这里设定next state 和state 相同 ， done设置为False，reward 用准确率的变化来计算
         done = 0
         next_state = self.feature(self.n_components, self.model)
-        reward = new_acc - old_acc
+        if amplify == "exp":
+            reward = np.exp(new_acc) - np.exp(old_acc)
+        elif amplify == "linear" or amplify is None:
+            reward = new_acc - old_acc
 
         if not self.is_test:
             self.transition += [reward, next_state, done]
-            print(f"rank:{self.rank} action: {self.transition[1]}  state == next state:{self.state == next_state} ")
             self.memory.store(*self.transition)
 
     # 更新策略网络
@@ -262,16 +275,14 @@ class DQNAgent(Worker_Vision):
             choose_worker = worker_list[action]
             param.data += choose_worker.state_dict()[name].data
             param.data /= 2
-            # print(param.data)
-            # print(choose_worker.state_dict()[name].data)
         return model
 
     def get_workerlist(self, worker_list):
         self.worker_list_model = worker_list
 
     # 这个方法用于在每个step里面模型融合
-    def step_mergemodel(self, worker_list):
-        action = self.select_action()
+    def step_updatemodel(self, worker_list):
+        action, entropy = self.select_action()
         self.model = self.act(self.model, action, worker_list)
 
     def train_step_dqn(self):
@@ -286,7 +297,7 @@ class DQNAgent(Worker_Vision):
             self.select_action_sample()
 
         # 这一步的作用是选择action并作出action
-        self.step_mergemodel(self.worker_list_model)
+        self.step_updatemodel(self.worker_list_model)
 
         # 思考done的含义？
         # if episode ends
