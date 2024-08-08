@@ -108,6 +108,7 @@ class DQNAgent(Worker_Vision):
         scheduler,
         train_loader,
         args,
+        wandb,
         max_epsilon: float = 0.2,
         min_epsilon: float = 0.05,
         gamma: float = 0.99,
@@ -136,7 +137,7 @@ class DQNAgent(Worker_Vision):
         self.device = args.device
         # print(self.device)
         self.sample = args.sample
-
+        self.wandb = wandb
         # networks: dqn, dqn_target
         # self.dqn = Network(obs_dim, action_dim).to(self.device)
         self.dqn = value_model.to(self.device)
@@ -220,20 +221,21 @@ class DQNAgent(Worker_Vision):
             selected_action = action_space[
                 torch.randint(low=0, high=len(action_space), size=(1,))
             ].item()
-            entropy = torch.log(self.clients_number)
+            # entropy = torch.log(self.clients_number)
         else:
             logits = self.dqn(self.state.to(self.device))
             # softmax logits
             normalized_logits = F.softmax(logits, dim=-1)
             entropy = -torch.sum(normalized_logits * torch.log(normalized_logits))
-            selected_action = self.dqn(self.state.to(self.device)).argmax().item()
+            selected_action = logits.argmax().item()
             # selected_action = selected_action.detach().cpu().numpy()
-
+            
+            self.wandb.log({"entropy": entropy})
         # 在这里先存好状态和动作
         if not self.is_test:
             self.transition = [self.state, selected_action]
 
-        return selected_action, entropy
+        return selected_action
 
     def store_buffer(
         self,
@@ -251,6 +253,7 @@ class DQNAgent(Worker_Vision):
         elif amplify == "linear" or amplify is None:
             reward = new_acc - old_acc
 
+        self.wandb.log({"reward": reward})
         if not self.is_test:
             self.transition += [reward, next_state, done]
             self.memory.store(*self.transition)
@@ -281,8 +284,8 @@ class DQNAgent(Worker_Vision):
         self.worker_list_model = worker_list
 
     # 这个方法用于在每个step里面模型融合
-    def step_updatemodel(self, worker_list):
-        action, entropy = self.select_action()
+    def step_mergemodel(self, worker_list):
+        action = self.select_action()
         self.model = self.act(self.model, action, worker_list)
 
     def train_step_dqn(self):
@@ -297,7 +300,7 @@ class DQNAgent(Worker_Vision):
             self.select_action_sample()
 
         # 这一步的作用是选择action并作出action
-        self.step_updatemodel(self.worker_list_model)
+        self.step_mergemodel(self.worker_list_model)
 
         # 思考done的含义？
         # if episode ends

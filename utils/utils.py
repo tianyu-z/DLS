@@ -330,16 +330,19 @@ def update_csgd(worker_list, center_model):
         worker.update_grad()
 
 
-def update_dqn_chooseone(worker_list):
+def update_dqn_chooseone(worker_list, iteration, wandb, merge_step=1):
     worker_list_model = [copy.deepcopy(i.model) for i in worker_list]
     for worker in worker_list:
         worker.get_workerlist(worker_list_model)
         worker.step()
         worker.update_grad()
         old_accuracy = worker.get_accuracy(worker.model)
-        worker.train_step_dqn()
-        new_accuracy = worker.get_accuracy(worker.model)
-        worker.store_buffer(old_accuracy, new_accuracy)
+        wandb.log({f"acc_{worker.rank}": old_accuracy})
+        if iteration % merge_step == 0:
+            worker.train_step_dqn()
+            new_accuracy = worker.get_accuracy(worker.model)
+            wandb.log({f"acc_{worker.rank}": new_accuracy})
+            worker.store_buffer(old_accuracy, new_accuracy)
 
 
 def update_dsgd(worker_list, P, args):
@@ -380,6 +383,10 @@ def evaluate_and_log(
     writer,
     args,
     wandb,
+    mode,
+    worker_list,
+    train_dataloaders,
+    valid_dataloaders
 ):
     start_time = datetime.datetime.now()
     if iteration == 0:
@@ -395,15 +402,60 @@ def evaluate_and_log(
             args.device,
         )
     else:
-        train_acc, train_loss, valid_acc, valid_loss = eval_vision(
-            center_model,
-            probe_train_loader,
-            probe_valid_loader,
-            None,
-            iteration,
-            writer,
-            args.device,
-        )
+        if mode != "dqn_chooseone":
+            train_acc, train_loss, valid_acc, valid_loss = eval_vision(
+                center_model,
+                probe_train_loader,
+                probe_valid_loader,
+                None,
+                iteration,
+                writer,
+                args.device,
+            )
+        else:
+            ave_train_acc, ave_train_loss, ave_valid_acc, ave_valid_loss = (0, 0, 0, 0)
+            for worker in worker_list:
+                train_acc, train_loss, valid_acc, valid_loss = eval_vision(
+                worker.model,
+                probe_train_loader,
+                probe_valid_loader,
+                None,
+                iteration,
+                writer,
+                args.device,
+            )
+                ave_train_acc += train_acc / worker.clients_number
+                ave_train_loss += train_loss / worker.clients_number
+                ave_valid_acc += valid_acc / worker.clients_number
+                ave_valid_loss += valid_loss / worker.clients_number
+                                
+            train_acc, train_loss, valid_acc, valid_loss = ave_train_acc, ave_train_loss, ave_valid_acc, ave_valid_loss
+            
+            local_ave_train_acc, local_ave_train_loss, local_ave_valid_acc, local_ave_valid_loss = (0, 0, 0, 0)
+            for worker in worker_list:
+                local_train_acc, local_train_loss, local_valid_acc, local_valid_loss = eval_vision(
+                worker.model,
+                train_dataloaders[worker.rank],
+                valid_dataloaders[worker.rank],
+                None,
+                iteration,
+                writer,
+                args.device,
+            )
+                local_ave_train_acc += local_train_acc / worker.clients_number
+                local_ave_train_loss += local_train_loss / worker.clients_number
+                local_ave_valid_acc += local_valid_acc / worker.clients_number
+                local_ave_valid_loss += local_valid_loss / worker.clients_number
+                                
+            wandb.log(
+        {
+            "local_train_loss": local_ave_train_loss,
+            "local_train_acc": local_ave_train_acc,
+            "local_valid_loss": local_ave_valid_loss,
+            "local_valid_acc": local_ave_valid_acc,
+        }
+    )
+            
 
     print(
         f"\n|\033[0;31m Iteration:{iteration}|{args.early_stop}, epoch: {epoch}|{args.early_stop},\033[0m",

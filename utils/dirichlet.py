@@ -56,7 +56,7 @@ class nonIIDSampler(torch.utils.data.Sampler):
 
 
 # Create n dataloaders
-def create_dataloaders(dataset, n, samples_per_loader, all_class_weights=None):
+def create_dataloaders(dataset, n, samples_per_loader, batch_size=32, all_class_weights=None):
     dataloaders = []
 
     for i in range(n):
@@ -67,7 +67,7 @@ def create_dataloaders(dataset, n, samples_per_loader, all_class_weights=None):
             class_weights = np.random.dirichlet(np.ones(10))
 
         sampler = nonIIDSampler(dataset, samples_per_loader, class_weights)
-        dataloader = DataLoader(dataset, batch_size=32, sampler=sampler)
+        dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
         dataloaders.append(dataloader)
 
     return dataloaders
@@ -121,4 +121,4 @@ if __name__ == "__main__":
     #     print(f"Dataloader {i} class distribution:")
     #     print(class_counts)
     #     print()
-    print(create_simple_preference(5, 10))
+    print(create_simple_preference(16, 10))
