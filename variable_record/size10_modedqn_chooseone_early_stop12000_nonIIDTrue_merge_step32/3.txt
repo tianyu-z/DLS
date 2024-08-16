@@ -1,0 +1,2 @@
+0.01171875
+This is a new text file.

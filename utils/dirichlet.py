@@ -73,7 +73,7 @@ def create_dataloaders(dataset, n, samples_per_loader, batch_size=32, all_class_
     return dataloaders
 
 
-def create_simple_preference(n, nb_class, important_prob=0.8):
+def create_simple_preference(n, nb_class, important_prob=0.5):
     all_class_weights = np.zeros((n, nb_class))
     if nb_class > n:
         nb_important = nb_class // n

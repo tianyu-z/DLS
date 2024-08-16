@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 import torch.nn as nn
 import copy
-
+import json
 # set random seed
 # def set_seed(args):
 #     torch.backends.cudnn.deterministic = True
@@ -338,10 +338,12 @@ def update_dqn_chooseone(worker_list, iteration, wandb, merge_step=1):
         worker.update_grad()
         old_accuracy = worker.get_accuracy(worker.model)
         wandb.log({f"acc_{worker.rank}": old_accuracy})
+        writein_file(old_accuracy, wandb.name, worker.rank)
         if iteration % merge_step == 0:
             worker.train_step_dqn()
             new_accuracy = worker.get_accuracy(worker.model)
             wandb.log({f"acc_{worker.rank}": new_accuracy})
+            writein_file(new_accuracy, wandb.name, worker.rank)
             worker.store_buffer(old_accuracy, new_accuracy)
 
 
@@ -487,3 +489,112 @@ def save_model(center_model, train_acc, epoch, args, log_id):
     if not os.path.exists(args.perf_dict_dir):
         os.mkdir(args.perf_dict_dir)
     torch.save(state, os.path.join(args.perf_dict_dir, f"{log_id}.t7"))
+
+def writein_file(acc, name, rank):
+    run_path = "/mnt/nas/share2/home/lwh/DLS/variable_record/"
+    if not os.path.exists(run_path):
+    # 如果文件夹不存在，则创建它
+        os.makedirs(run_path)
+        print(f"Folder '{run_path}' created.")
+    
+    file_path = os.path.join(run_path, name)
+    if not os.path.exists(file_path):
+    # 如果文件夹不存在，则创建它
+        os.makedirs(file_path)
+        print(f"Folder '{file_path}' created.")
+    
+    rank_file = os.path.join(file_path, f"{rank}.txt")
+    with open(rank_file, 'w') as file:
+        # 写入内容
+        file.write(f"{acc}\n")
+        file.write("This is a new text file.")
+
+class Merge_History:
+    def __init__(self, size, length):
+        self.size = size
+        self.length = length
+        self.history =  [[[0 for _ in range(self.size)] for _ in range(self.size)] for _ in range(self.length)]
+        self.pointer = 0
+        self.time = 0
+        
+    def pointer_step(self):
+        if self.pointer ==self.length - 1:
+            self.pointer = 0
+        else:
+            self.pointer += 1 
+
+    def add_history(self, eval_list):
+        self.history[self.pointer] = eval_list
+        self.pointer_step()
+      
+def choose(eval_result, history, pointer):
+    max_value = max(eval_result)
+    max_index = eval_result.index(max_value)
+    return max_index
+
+def choose_merge(worker, eval_result, model_dict_list, history, pointer):
+        max_index = choose(eval_result, history, pointer)
+        for name, param in worker.model.named_parameters():
+            param.data += model_dict_list[max_index][name].data
+        return max_index
+
+def record_info(eval_all, action):
+    # 打开一个文件以进行写入操作（如果文件不存在，会创建新文件；如果文件存在，会覆盖原有内容）
+    with open('/mnt/nas/share2/home/lwh/DLS/variable_record/heuristic_record_2.json', 'a') as file:
+        content = {"eval": eval_all, "action": action}
+        json.dump(content, file, indent=4)
+     
+
+def update_heuristic(worker_list, args, merge_history):
+    model_dict_list = [worker.model.state_dict() for worker in worker_list]
+    eval_all = list()
+    action = list()
+    merge_history.time += 1
+    for worker in worker_list:
+        eval_result = list()
+        worker.step()
+        worker.update_grad()
+        old_acc = worker.get_accuracy(worker.model)
+        
+        if merge_history.time % 20 == 0:
+            for model_state_dict in model_dict_list:
+                worker_model = copy.deepcopy(worker.model)
+                for name, param in worker_model.named_parameters():
+                        param.data += model_state_dict[name].data
+                        
+                new_acc = worker.get_accuracy(worker_model)
+                acc_improve = new_acc - old_acc
+                eval_result.append(acc_improve)
+            act = choose_merge(worker, eval_result, model_dict_list, merge_history.history, merge_history.pointer)
+            eval_all.append(eval_result)
+            action.append(act)
+    if merge_history.time % 20 == 0:
+        record_info(eval_all, action)
+        merge_history.add_history(eval_all)
+    
+    # merge and step
+def update_heuristic_2(worker_list, args, merge_history):    
+    model_dict_list = [worker.model.state_dict() for worker in worker_list]
+    eval_all = list()
+    action = list()
+    merge_history.time += 1
+    for worker in worker_list:
+        eval_result = list()
+        if merge_history.time % 20 == 0:
+            old_acc = worker.get_accuracy(worker.model)
+            for model_state_dict in model_dict_list:
+                worker_model = copy.deepcopy(worker.model)
+                for name, param in worker_model.named_parameters():
+                        param.data += model_state_dict[name].data
+                        
+                new_acc = worker.get_accuracy(worker_model)
+                acc_improve = new_acc - old_acc
+                eval_result.append(acc_improve)
+            act = choose_merge(worker, eval_result, model_dict_list, merge_history.history, merge_history.pointer)
+            eval_all.append(eval_result)
+            action.append(act)
+        worker.step()
+        worker.update_grad()
+    if merge_history.time % 20 == 0:
+        record_info(eval_all, action)
+        merge_history.add_history(eval_all)

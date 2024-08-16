@@ -156,6 +156,8 @@ class DQNAgent(Worker_Vision):
         self.is_test = False
 
         self.update_cnt = 0
+        
+        self.last_action = torch.zeros(1)
 
     def feature(self, n_components, model):
         weights_pca = pca_weights(n_components=n_components, weights=model.state_dict())
@@ -192,6 +194,9 @@ class DQNAgent(Worker_Vision):
                 new_accuracy = self.get_accuracy(merge_model)
                 reward = new_accuracy - old_accuracy
                 next_state = self.feature(self.n_components, merge_model)
+                action_record = torch.zeros(self.clients_number)
+                action_record[selected_indices[i]] = 1
+                next_state = torch.cat((next_state, action_record), dim=0)
                 done = 0
                 if not self.is_test:
                     self.transition_sample[i] += [reward, next_state, done]
@@ -231,10 +236,16 @@ class DQNAgent(Worker_Vision):
             # selected_action = selected_action.detach().cpu().numpy()
             
             self.wandb.log({"entropy": entropy})
+        
+        self.last_action = torch.zeros(self.clients_number)
+        self.last_action[selected_action] = 1
+        
         # 在这里先存好状态和动作
         if not self.is_test:
             self.transition = [self.state, selected_action]
 
+    
+        
         return selected_action
 
     def store_buffer(
@@ -248,6 +259,7 @@ class DQNAgent(Worker_Vision):
         # 这里设定next state 和state 相同 ， done设置为False，reward 用准确率的变化来计算
         done = 0
         next_state = self.feature(self.n_components, self.model)
+        next_state = torch.cat((next_state, self.last_action), dim=0)
         if amplify == "exp":
             reward = np.exp(new_acc) - np.exp(old_acc)
         elif amplify == "linear" or amplify is None:
@@ -294,7 +306,9 @@ class DQNAgent(Worker_Vision):
         # next_state = self.state
 
         self.state = self.feature(self.n_components, self.model)
-
+        if len(self.last_action) == 1:
+            self.last_action = torch.zeros(self.clients_number)
+        self.state = torch.cat((self.state, self.last_action), dim=0)
         # 在选择action并作出action前先判断是否要sample
         if self.sample > 0:
             self.select_action_sample()

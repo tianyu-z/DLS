@@ -21,6 +21,9 @@ from utils.utils import (
     update_dsgd,
     update_dqn_chooseone,
     update_csgd,
+    update_heuristic,
+    Merge_History,
+    update_heuristic_2
 )
 from easydict import EasyDict
 import wandb
@@ -89,17 +92,8 @@ def main(
     dir_path = os.path.dirname(__file__)
     args = add_identity(args, dir_path)
     sub_dict_str = "_".join([key + str(args[key]) for key in sub_dict_keys])
-    run = wandb.init(project=project_name)
-    wandb.config.update(args)
-
-    run.name = sub_dict_str
-    run.save()
-
-    # 登录Wandb账户
-    # wandb.login(key="831b4bf90cf69dcf8cae62953d13595412ce439d")
-
     # 初始化Wandb项目
-    wandb.init(project=project_name)
+    wandb.init(project=project_name, name=sub_dict_str)
 
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
     dir_path = os.path.dirname(__file__)
@@ -188,6 +182,11 @@ def main(
                 worker = DQNAgent(
                     model, value_model, rank, optimizer, scheduler, train_loader, args, wandb, max_epsilon=0.2
                 )
+            elif args.mode == "heuristic":
+                worker = Worker_Vision(
+                    model, rank, optimizer, scheduler, train_loader, args.device
+                )
+                merge_history = Merge_History(args.size, 5)
             else:
                 worker = Worker_Vision(
                     model, rank, optimizer, scheduler, train_loader, args.device
@@ -223,6 +222,8 @@ def main(
             update_csgd(worker_list, center_model)
         elif args.mode == "dqn_chooseone":
             update_dqn_chooseone(worker_list, iteration, wandb, merge_step)
+        elif args.mode == "heuristic":
+            update_heuristic_2(worker_list, args, merge_history)
         else:  # dsgd
             update_dsgd(worker_list, P, args)
 
@@ -259,11 +260,11 @@ if __name__ == "__main__":
     Fire(main(dataset_path="/mnt/nas/share2/home/lwh/cifar_datasets",
     dataset_name="CIFAR10",
     image_size=56,
-    batch_size=256,
+    batch_size=512,
     n_swap=None,
-    mode="right",
+    mode="heuristic",
     shuffle="fixed",
-    size=10,
+    size=5,
     port=29500,
     backend="gloo",
     model="ResNet18_M",
@@ -274,16 +275,16 @@ if __name__ == "__main__":
     momentum=0.0,
     warmup_step=0,
     # epoch=6000,
-    early_stop=12000,
+    early_stop=6000,
     milestones=[2400, 4800],
     seed=666,
-    device="cuda:7",
+    device="cuda:0",
     amp=False,
     sample=5,
     n_components=0, # 这个参数没有用
     nonIID=True,
     project_name="decentralized",
     alpha=0.3,
-    state_size=144,
+    state_size=154,
     valuemodel_hiddensize=320,
     merge_step=32))
