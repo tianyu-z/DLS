@@ -311,6 +311,8 @@ def generate_P(mode, size):
             topo[i] = np.roll(x, i)
         result = torch.tensor(topo, dtype=torch.float)
     # print(result, flush=True)
+    elif mode == "random":
+        result = None
     return result
 
 
@@ -348,6 +350,16 @@ def update_dqn_chooseone(worker_list, iteration, wandb, merge_step=1):
 
 
 def update_dsgd(worker_list, P, args):
+    # 如果 P为NONe，说明是随机选择worker
+    if P is None:
+        P = torch.zeros((args.size, args.size))
+        P.fill_diagonal_(0.5) 
+        # 在每一行随机选择一个其他位置设置为 0.5
+        for i in range(args.size):
+            # 随机选择一个列索引，但不能是当前行的对角线位置
+            random_col = random.choice([j for j in range(args.size) if j != i])
+            P[i, random_col] = 0.5
+        
     P_perturbed = (
         P
         if args.shuffle == "fixed"
@@ -356,7 +368,7 @@ def update_dsgd(worker_list, P, args):
         )
     )
     model_dict_list = [worker.model.state_dict() for worker in worker_list]
-
+    
     for worker in worker_list:
         worker.step()
         for name, param in worker.model.named_parameters():
@@ -526,22 +538,56 @@ class Merge_History:
     def add_history(self, eval_list):
         self.history[self.pointer] = eval_list
         self.pointer_step()
-      
-def choose(eval_result, history, pointer):
-    max_value = max(eval_result)
-    max_index = eval_result.index(max_value)
-    return max_index
+    
+def second_largest_index(lst):
+    if len(lst) < 2:
+        raise ValueError("列表中至少需要有两个元素")
 
-def choose_merge(worker, eval_result, model_dict_list, history, pointer):
-        max_index = choose(eval_result, history, pointer)
+    # 初始化最大值和第二大值
+    max_value = max(lst[0], lst[1])
+    second_max_value = min(lst[0], lst[1])
+    max_index = lst.index(max_value)
+    second_max_index = lst.index(second_max_value)
+
+    # 遍历列表找到第二大的元素
+    for i in range(2, len(lst)):
+        if lst[i] > max_value:
+            second_max_value = max_value
+            second_max_index = max_index
+            max_value = lst[i]
+            max_index = i
+        elif lst[i] > second_max_value and lst[i] != max_value:
+            second_max_value = lst[i]
+            second_max_index = i
+
+    return second_max_index
+
+def get_sorted_indices(lst):
+    # 使用 enumerate 获取元素及其索引的元组列表
+    indexed_list = list(enumerate(lst))
+    # 按元素值从大到小排序
+    sorted_indexed_list = sorted(indexed_list, key=lambda x: x[1], reverse=True)
+    # 提取排序后的索引
+    sorted_indices = [index for index, value in sorted_indexed_list]
+    return sorted_indices
+  
+def choose(eval_result, history, pointer, choose_which):
+    
+    sequence = get_sorted_indices(eval_result)
+    choose_index = sequence[choose_which]
+    return choose_index
+
+def choose_merge(worker, eval_result, model_dict_list, history, pointer, second_max):
+        max_index = choose(eval_result, history, pointer, second_max)
         for name, param in worker.model.named_parameters():
             param.data += model_dict_list[max_index][name].data
+            param.data /= 2
         return max_index
 
-def record_info(eval_all, action):
+def record_info(eval_all, action, choose_which):
     # 打开一个文件以进行写入操作（如果文件不存在，会创建新文件；如果文件存在，会覆盖原有内容）
-    with open('/mnt/nas/share2/home/lwh/DLS/variable_record/heuristic_record_2.json', 'a') as file:
-        content = {"eval": eval_all, "action": action}
+    with open(f'/mnt/csp/mmvision/home/lwh/DLS/heuristic2_record_choose{choose_which}.json', 'a') as file:
+        content = {"eval": eval_all, "worker0": action[0], "worker1": action[1], "worker2": action[2], "worker3": action[3], "worker4": action[4]}
         json.dump(content, file, indent=4)
      
 
@@ -561,7 +607,7 @@ def update_heuristic(worker_list, args, merge_history):
                 worker_model = copy.deepcopy(worker.model)
                 for name, param in worker_model.named_parameters():
                         param.data += model_state_dict[name].data
-                        
+                        param.data /= 2
                 new_acc = worker.get_accuracy(worker_model)
                 acc_improve = new_acc - old_acc
                 eval_result.append(acc_improve)
@@ -573,7 +619,40 @@ def update_heuristic(worker_list, args, merge_history):
         merge_history.add_history(eval_all)
     
     # merge and step
-def update_heuristic_2(worker_list, args, merge_history):    
+def update_heuristic_2(worker_list, args, merge_history, choose_which):    
+    # get weights of all the models before updating models 
+    model_dict_list = [worker.model.state_dict() for worker in worker_list]
+    # list to store eval results
+    eval_all = list()
+    action = list()
+    merge_history.time += 1
+    # for each worker, update the model and get the eval result
+    for worker in worker_list:
+        eval_result = list()
+        # every 20 step merge model
+        if merge_history.time % 20 == 0:
+            old_acc = worker.get_accuracy(worker.model)
+            # for every model weights in model_dict_list, merge it with current model and get the new acc
+            for model_state_dict in model_dict_list:
+                worker_model = copy.deepcopy(worker.model)
+                for name, param in worker_model.named_parameters():
+                        param.data += model_state_dict[name].data
+                        param.data = param.data / 2
+                        
+                new_acc = worker.get_accuracy(worker_model)
+                acc_improve = new_acc - old_acc
+                eval_result.append(acc_improve)
+            # select the action by eval result and choose_which hyperparameter
+            act = choose_merge(worker, eval_result, model_dict_list, merge_history.history, merge_history.pointer, choose_which)
+            eval_all.append(eval_result)
+            action.append(act)
+        worker.step()
+        worker.update_grad()
+    if merge_history.time % 20 == 0:
+        record_info(eval_all, action, choose_which)
+        merge_history.add_history(eval_all)
+        
+def update_heuristic_3(worker_list, args, merge_history, choose_which):    
     model_dict_list = [worker.model.state_dict() for worker in worker_list]
     eval_all = list()
     action = list()
@@ -586,15 +665,24 @@ def update_heuristic_2(worker_list, args, merge_history):
                 worker_model = copy.deepcopy(worker.model)
                 for name, param in worker_model.named_parameters():
                         param.data += model_state_dict[name].data
-                        
-                new_acc = worker.get_accuracy(worker_model)
+                        param.data = param.data / 2
+                
+                newworker = copy.deepcopy(worker)
+                newworker.model = worker_model
+                for i in range(0,20):
+                    try:
+                        newworker.step()
+                        newworker.update_grad()
+                    except:
+                        break
+                new_acc = newworker.get_accuracy(newworker.model)
                 acc_improve = new_acc - old_acc
                 eval_result.append(acc_improve)
-            act = choose_merge(worker, eval_result, model_dict_list, merge_history.history, merge_history.pointer)
+            act = choose_merge(worker, eval_result, model_dict_list, merge_history.history, merge_history.pointer, choose_which)
             eval_all.append(eval_result)
             action.append(act)
         worker.step()
         worker.update_grad()
     if merge_history.time % 20 == 0:
-        record_info(eval_all, action)
+        record_info(eval_all, action, choose_which)
         merge_history.add_history(eval_all)

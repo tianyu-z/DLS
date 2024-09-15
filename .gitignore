@@ -22,3 +22,4 @@ logs*
 dev.py
 data/*
 wandb/*
+work_records/*

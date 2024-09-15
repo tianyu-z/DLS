@@ -1,0 +1,150 @@
+worker0 action 0 占的比例: 100.00%
+worker0 action 1 占的比例: 0.00%
+worker0 action 2 占的比例: 0.00%
+worker0 action 3 占的比例: 0.00%
+worker0 action 4 占的比例: 0.00%
+
+worker1 action 0 占的比例: 0.00%
+worker1 action 1 占的比例: 100.00%
+worker1 action 2 占的比例: 0.00%
+worker1 action 3 占的比例: 0.00%
+worker1 action 4 占的比例: 0.00%
+
+worker2 action 0 占的比例: 0.00%
+worker2 action 1 占的比例: 0.00%
+worker2 action 2 占的比例: 100.00%
+worker2 action 3 占的比例: 0.00%
+worker2 action 4 占的比例: 0.00%
+
+worker3 action 0 占的比例: 0.56%
+worker3 action 1 占的比例: 0.00%
+worker3 action 2 占的比例: 0.00%
+worker3 action 3 占的比例: 99.44%
+worker3 action 4 占的比例: 0.00%
+
+worker4 action 0 占的比例: 0.56%
+worker4 action 1 占的比例: 0.56%
+worker4 action 2 占的比例: 0.00%
+worker4 action 3 占的比例: 0.00%
+worker4 action 4 占的比例: 98.87%
+
+mode 1:
+worker0 action 0 占的比例: 100.00%
+worker0 action 1 占的比例: 0.00%
+worker0 action 2 占的比例: 0.00%
+worker0 action 3 占的比例: 0.00%
+worker0 action 4 占的比例: 0.00%
+
+worker1 action 0 占的比例: 0.00%
+worker1 action 1 占的比例: 100.00%
+worker1 action 2 占的比例: 0.00%
+worker1 action 3 占的比例: 0.00%
+worker1 action 4 占的比例: 0.00%
+
+worker2 action 0 占的比例: 0.00%
+worker2 action 1 占的比例: 0.00%
+worker2 action 2 占的比例: 100.00%
+worker2 action 3 占的比例: 0.00%
+worker2 action 4 占的比例: 0.00%
+
+worker3 action 0 占的比例: 0.56%
+worker3 action 1 占的比例: 0.00%
+worker3 action 2 占的比例: 0.00%
+worker3 action 3 占的比例: 99.44%
+worker3 action 4 占的比例: 0.00%
+
+worker4 action 0 占的比例: 0.56%
+worker4 action 1 占的比例: 0.56%
+worker4 action 2 占的比例: 0.00%
+worker4 action 3 占的比例: 0.00%
+worker4 action 4 占的比例: 98.87%
+
+worker0 action 0 占的比例: 2.00%
+worker0 action 1 占的比例: 16.00%
+worker0 action 2 占的比例: 13.43%
+worker0 action 3 占的比例: 36.29%
+worker0 action 4 占的比例: 32.29%
+
+worker1 action 0 占的比例: 19.43%
+worker1 action 1 占的比例: 0.29%
+worker1 action 2 占的比例: 8.57%
+worker1 action 3 占的比例: 18.00%
+worker1 action 4 占的比例: 53.71%
+
+worker2 action 0 占的比例: 6.29%
+worker2 action 1 占的比例: 3.71%
+worker2 action 2 占的比例: 0.29%
+worker2 action 3 占的比例: 43.14%
+worker2 action 4 占的比例: 46.57%
+
+worker3 action 0 占的比例: 7.14%
+worker3 action 1 占的比例: 9.43%
+worker3 action 2 占的比例: 47.71%
+worker3 action 3 占的比例: 9.14%
+worker3 action 4 占的比例: 26.57%
+
+worker4 action 0 占的比例: 8.86%
+worker4 action 1 占的比例: 10.86%
+worker4 action 2 占的比例: 44.57%
+worker4 action 3 占的比例: 23.71%
+worker4 action 4 占的比例: 12.00%
+
+worker0 action 0 占的比例: 0.29%
+worker0 action 1 占的比例: 34.86%
+worker0 action 2 占的比例: 30.00%
+worker0 action 3 占的比例: 22.86%
+worker0 action 4 占的比例: 12.00%
+
+worker1 action 0 占的比例: 12.57%
+worker1 action 1 占的比例: 0.00%
+worker1 action 2 占的比例: 23.14%
+worker1 action 3 占的比例: 54.86%
+worker1 action 4 占的比例: 9.43%
+
+worker2 action 0 占的比例: 26.29%
+worker2 action 1 占的比例: 32.29%
+worker2 action 2 占的比例: 0.00%
+worker2 action 3 占的比例: 10.29%
+worker2 action 4 占的比例: 31.14%
+
+worker3 action 0 占的比例: 16.00%
+worker3 action 1 占的比例: 12.29%
+worker3 action 2 占的比例: 17.14%
+worker3 action 3 占的比例: 51.43%
+worker3 action 4 占的比例: 3.14%
+
+worker4 action 0 占的比例: 12.57%
+worker4 action 1 占的比例: 45.43%
+worker4 action 2 占的比例: 17.71%
+worker4 action 3 占的比例: 13.71%
+worker4 action 4 占的比例: 10.57%
+
+worker0 action 0 占的比例: 1.36%
+worker0 action 1 占的比例: 17.73%
+worker0 action 2 占的比例: 24.55%
+worker0 action 3 占的比例: 10.23%
+worker0 action 4 占的比例: 46.14%
+
+worker1 action 0 占的比例: 17.50%
+worker1 action 1 占的比例: 0.00%
+worker1 action 2 占的比例: 67.95%
+worker1 action 3 占的比例: 3.18%
+worker1 action 4 占的比例: 11.36%
+
+worker2 action 0 占的比例: 19.55%
+worker2 action 1 占的比例: 17.05%
+worker2 action 2 占的比例: 0.00%
+worker2 action 3 占的比例: 1.59%
+worker2 action 4 占的比例: 61.82%
+
+worker3 action 0 占的比例: 8.18%
+worker3 action 1 占的比例: 19.55%
+worker3 action 2 占的比例: 11.14%
+worker3 action 3 占的比例: 0.00%
+worker3 action 4 占的比例: 61.14%
+
+worker4 action 0 占的比例: 6.14%
+worker4 action 1 占的比例: 8.86%
+worker4 action 2 占的比例: 14.09%
+worker4 action 3 占的比例: 19.09%
+worker4 action 4 占的比例: 51.82%

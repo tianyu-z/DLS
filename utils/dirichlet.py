@@ -31,6 +31,14 @@ def dirichlet_split_noniid(train_labels, alpha, n_clients):
 
     return client_idcs
 
+def dirichlet_split(n, num_classes, dir_alpha):
+
+    # 生成 Dirichlet 分布权重的 numpy 矩阵
+    np.random.seed(42)
+    weights = np.random.dirichlet([dir_alpha] * num_classes, n)
+    print(f"dirichlet weights: {weights}")
+    return weights
+
 # nam samples 指的是 原本 dataset 按照 batchsize 为512 划分之后的的length（97）再按照node size 划分的数量 这里是 97//16 = 6
 class nonIIDSampler(torch.utils.data.Sampler):
     def __init__(self, dataset, num_samples, class_weights):
