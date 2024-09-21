@@ -285,12 +285,12 @@ class DQNAgent(Worker_Vision):
 
     # 做出行动
     def act(self, model, action, worker_list):
-        model = copy.deepcopy(model)
-        for name, param in model.named_parameters():
+        models = copy.deepcopy(model)
+        for name, param in models.named_parameters():
             choose_worker = worker_list[action]
             param.data += choose_worker.state_dict()[name].data
             param.data /= 2
-        return model
+        return models
 
     def get_workerlist(self, worker_list):
         self.worker_list_model = worker_list
@@ -298,7 +298,15 @@ class DQNAgent(Worker_Vision):
     # 这个方法用于在每个step里面模型融合
     def step_mergemodel(self, worker_list):
         action = self.select_action()
-        self.model = self.act(self.model, action, worker_list)
+        self.model.load_state_dict(self.act(self.model, action, worker_list).state_dict())
+    
+    def step_mergemodel_random(self, worker_list):
+        # get a random number from 0 to len(worker_list)
+        num = torch.randint(low=0, high=len(worker_list), size=(1,))
+        model2 = copy.deepcopy(self.model)
+        self.model = self.act(self.model, num.item(), worker_list)
+        # self.model.load_state_dict(self.act(self.model, num.item(), worker_list).state_dict())
+        # print('model the same:', self.compare_state_dicts(self.model.state_dict(), model2.state_dict()))
 
     def train_step_dqn(self):
         # action = self.select_action(self.state)
@@ -340,6 +348,20 @@ class DQNAgent(Worker_Vision):
             # if hard update is needed
             if self.update_cnt % self.target_update == 0:
                 self._target_hard_update()
+    
+    def compare_state_dicts(self, state_dict1, state_dict2):
+        # 检查两个字典的键是否相同
+        if state_dict1.keys() != state_dict2.keys():
+            print('State dicts have different keys!')
+            return False
+        
+        # 逐个比较字典中的键值对
+        for key in state_dict1:
+            if not torch.allclose(state_dict1[key], state_dict2[key]):
+                print(f'State dict keys not match! {key}')
+                return False
+        
+        return True
 
     '''
     def train(self, num_frames: int):

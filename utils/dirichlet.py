@@ -41,11 +41,12 @@ def dirichlet_split(n, num_classes, dir_alpha):
 
 # nam samples 指的是 原本 dataset 按照 batchsize 为512 划分之后的的length（97）再按照node size 划分的数量 这里是 97//16 = 6
 class nonIIDSampler(torch.utils.data.Sampler):
-    def __init__(self, dataset, num_samples, class_weights):
+    def __init__(self, dataset, num_samples, class_weights, nb_classes):
         self.dataset = dataset
         self.num_samples = num_samples
         self.class_weights = class_weights
-        self.class_indices = [[] for _ in range(10)]
+        self.nb_classes = nb_classes
+        self.class_indices = [[] for _ in range(self.nb_classes)]
         with tqdm(total=len(dataset), desc="Initializing Sampler") as pbar:
             for idx, (_, label) in enumerate(dataset):
                 self.class_indices[label].append(idx)
@@ -54,7 +55,7 @@ class nonIIDSampler(torch.utils.data.Sampler):
     def __iter__(self):
         samples = []
         for _ in range(self.num_samples):
-            class_idx = np.random.choice(10, p=self.class_weights)
+            class_idx = np.random.choice(self.nb_classes, p=self.class_weights)
             sample_idx = np.random.choice(self.class_indices[class_idx])
             samples.append(sample_idx)
         return iter(samples)
@@ -64,7 +65,7 @@ class nonIIDSampler(torch.utils.data.Sampler):
 
 
 # Create n dataloaders
-def create_dataloaders(dataset, n, samples_per_loader, batch_size=32, all_class_weights=None):
+def create_dataloaders(dataset, n, samples_per_loader, batch_size=32, all_class_weights=None, nb_class=10):
     dataloaders = []
 
     for i in range(n):
@@ -72,9 +73,9 @@ def create_dataloaders(dataset, n, samples_per_loader, batch_size=32, all_class_
         if all_class_weights is not None:
             class_weights = all_class_weights[i]
         else:
-            class_weights = np.random.dirichlet(np.ones(10))
+            class_weights = np.random.dirichlet(np.ones(nb_class))
 
-        sampler = nonIIDSampler(dataset, samples_per_loader, class_weights)
+        sampler = nonIIDSampler(dataset, samples_per_loader, class_weights, nb_class)
         dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
         dataloaders.append(dataloader)
 

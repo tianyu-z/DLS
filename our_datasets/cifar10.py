@@ -73,5 +73,6 @@ def load_cifar10(
         valid_loader = DataLoader(
             valid_set, batch_size=valid_batch_size, drop_last=True
         )
+        
         return train_loader, valid_loader, (3, image_size, image_size), 10
     return train_set, valid_set, (3, image_size, image_size), 10

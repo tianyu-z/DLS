@@ -24,7 +24,9 @@ from utils.utils import (
     update_heuristic,
     Merge_History,
     update_heuristic_2,
-    update_heuristic_3
+    update_heuristic_3,
+    update_dqn_chooseone_debug,
+    update_dqn_chooseone_debug_2
 )
 from easydict import EasyDict
 import wandb
@@ -143,10 +145,10 @@ def main(
     else:
         all_class_weights = create_IID_preference(args.size, nb_class)
     train_dataloaders = create_dataloaders(
-        train_set, args.size, len(train_set) // args.size, args.batch_size, all_class_weights, 
+        train_set, args.size, len(train_set) // args.size, args.batch_size, all_class_weights, nb_class
     )
     valid_dataloaders = create_dataloaders(valid_set, args.size, 
-                                           len(valid_set) // args.size, args.batch_size, all_class_weights, )
+                                           len(valid_set) // args.size, args.batch_size, all_class_weights, nb_class )
     worker_list = []
     trainloader_length_list = []
     
@@ -231,7 +233,8 @@ def main(
         if args.mode == "csgd":
             update_csgd(worker_list, center_model)
         elif args.mode == "dqn_chooseone":
-            update_dqn_chooseone(worker_list, iteration, wandb, merge_step)
+            update_dqn_chooseone_debug_2(worker_list, iteration, wandb, merge_step)
+            # update_dqn_chooseone_debug(worker_list, center_model)
         elif args.mode == "heuristic":
             update_heuristic_2(worker_list, args, merge_history, args.choose_which)
         else:  # dsgd
@@ -268,11 +271,11 @@ def main(
 if __name__ == "__main__":
 
     Fire(main(dataset_path="/mnt/csp/mmvision/home/lwh/FLASH-RL/data",
-    dataset_name="CIFAR100",
+    dataset_name="cifar100",
     image_size=56,
     batch_size=128,
     n_swap=None,
-    mode="random",
+    mode="dqn_chooseone",
     shuffle="fixed",
     size=10,
     port=29500,
@@ -287,17 +290,17 @@ if __name__ == "__main__":
     # epoch=6000,
     early_stop=12000,
     milestones=[2400, 4800],
-    seed=111,
-    device="cuda:0",
+    seed=222,
+    device="cuda:6",
     amp=False,
-    sample=5,
+    sample=3,
     n_components=0, # 这个参数没有用
     nonIID=True,
     project_name="decentralized",
     alpha=0.8,
     state_size=154,
     valuemodel_hiddensize=320,
-    merge_step=32,
-    choose_which=2,
+    merge_step=20,
+    choose_which=1,
     dirichlet=True
     ))

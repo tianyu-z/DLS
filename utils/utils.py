@@ -132,8 +132,12 @@ def eval_vision(model, train_loader, valid_loader, epoch, iteration, tb, device)
     for batch in train_loader:
         step += 1
         if isinstance(batch[1], (int)):
+            batch  = list(batch)
             batch[1] = torch.tensor([batch[1]], dtype=torch.long)
         data, target = batch[0].to(device), batch[1].to(device)
+        # print('data', data.shape)
+        # print('target', target.shape)
+        # print('len of dataloader', len(train_loader))
         output = model(data)
         p = torch.softmax(output, dim=1).argmax(1)
         total_correct += p.eq(target).sum().item()
@@ -328,8 +332,16 @@ def PermutationMatrix(size):
 def update_csgd(worker_list, center_model):
     for worker in worker_list:
         worker.model.load_state_dict(center_model.state_dict())
+        try:
+            old_accuracy = worker.get_accuracy(worker.model)
+            print(f'rank of {worker.rank} old acc', old_accuracy)
+        except:
+            pass
+        
         worker.step()
         worker.update_grad()
+        new_accuracy = worker.get_accuracy(worker.model)
+        print(f'rank of {worker.rank} new acc', new_accuracy)
 
 
 def update_dqn_chooseone(worker_list, iteration, wandb, merge_step=1):
@@ -339,14 +351,49 @@ def update_dqn_chooseone(worker_list, iteration, wandb, merge_step=1):
         worker.step()
         worker.update_grad()
         old_accuracy = worker.get_accuracy(worker.model)
-        wandb.log({f"acc_{worker.rank}": old_accuracy})
-        writein_file(old_accuracy, wandb.name, worker.rank)
+        # wandb.log({f"acc_{worker.rank}": old_accuracy})
+        # writein_file(old_accuracy, wandb.name, worker.rank)
         if iteration % merge_step == 0:
+            worker.train_step_dqn()
+            new_accuracy = worker.get_accuracy(worker.model)
+            # wandb.log({f"acc_{worker.rank}": new_accuracy})
+            # writein_file(new_accuracy, wandb.name, worker.rank)
+            worker.store_buffer(old_accuracy, new_accuracy)
+
+def update_dqn_chooseone_debug_2(worker_list, iteration, wandb, merge_step=1):
+    worker_list_model = [copy.deepcopy(i.model) for i in worker_list]
+    for worker in worker_list:
+        worker.get_workerlist(worker_list_model)
+        worker.step()
+        worker.update_grad()
+        old_accuracy = worker.get_accuracy(worker.model)
+        print(f'rank of {worker.rank} old acc', old_accuracy)
+        # wandb.log({f"acc_{worker.rank}": old_accuracy})
+        # writein_file(old_accuracy, wandb.name, worker.rank)
+        worker.step_mergemodel_random(worker_list_model)
+        new_accuracy = worker.get_accuracy(worker.model)
+        print(f'rank of {worker.rank} new acc', new_accuracy)
+        if iteration % merge_step == -1:
             worker.train_step_dqn()
             new_accuracy = worker.get_accuracy(worker.model)
             wandb.log({f"acc_{worker.rank}": new_accuracy})
             writein_file(new_accuracy, wandb.name, worker.rank)
             worker.store_buffer(old_accuracy, new_accuracy)
+
+def update_dqn_chooseone_debug(worker_list, center_model):
+    for worker in worker_list:
+        # worker.model.load_state_dict(center_model.state_dict())
+        try:
+            old_accuracy = worker.get_accuracy(worker.model)
+            print(f'rank of {worker.rank} old acc', old_accuracy)
+        except:
+            pass
+        
+        worker.step()
+        worker.update_grad()
+        new_accuracy = worker.get_accuracy(worker.model)
+        print(f'rank of {worker.rank} new acc', new_accuracy)
+
 
 
 def update_dsgd(worker_list, P, args):
@@ -632,6 +679,7 @@ def update_heuristic_2(worker_list, args, merge_history, choose_which):
         # every 20 step merge model
         if merge_history.time % 20 == 0:
             old_acc = worker.get_accuracy(worker.model)
+            print(f'old acc: {old_acc}')
             # for every model weights in model_dict_list, merge it with current model and get the new acc
             for model_state_dict in model_dict_list:
                 worker_model = copy.deepcopy(worker.model)
@@ -640,6 +688,7 @@ def update_heuristic_2(worker_list, args, merge_history, choose_which):
                         param.data = param.data / 2
                         
                 new_acc = worker.get_accuracy(worker_model)
+                print(f'new acc: {new_acc}')
                 acc_improve = new_acc - old_acc
                 eval_result.append(acc_improve)
             # select the action by eval result and choose_which hyperparameter

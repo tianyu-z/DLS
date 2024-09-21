@@ -23,3 +23,4 @@ dev.py
 data/*
 wandb/*
 work_records/*
+variable_record/*
